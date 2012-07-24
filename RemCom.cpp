@@ -812,8 +812,15 @@ BOOL BuildMessageStructure( RemComMessage* pMsg )
 	// No wait
 	pMsg->bNoWait = IsCmdLineParameter( _T("nowait") );
 
-	// Show window
-	pMsg->bShowWin = IsCmdLineParameter( _T("i") );
+	LPCTSTR sid;
+	sid = GetParamValue( _T("i:"));
+	if (sid != NULL) {
+		pMsg->dwSid = atol(sid);
+		pMsg->bShowWin = TRUE;
+	} else {
+		pMsg->dwSid = -1;
+		pMsg->bShowWin = IsCmdLineParameter( _T("i") );
+	}
 
 	if ( lpszWorkingDir != NULL )
 		_tcscpy( pMsg->szWorkingDir, lpszWorkingDir );
@@ -1149,7 +1156,7 @@ void ShowUsage()
  Out( _T(" [/idle | /normal | /high | /realtime]\tPriority class (use only one)\n") );
  Out( _T("  /nowait\t\tDon't wait for remote process to terminate\n") );
  Out( _T("\n") );
-  Out( _T("  /i\t\tShow GUI of the launched app in interactive session\n") );
+  Out( _T("  /i[:SessionID]\t\tShow GUI of the launched app in interactive session. If SessionID is ommitted - launches in first active session, exists with -100500 if no active sessions exist.\n") );
  Out( _T("\n") );
  Out( _T(" /c\t\t\tCopy the specified program to the remote machine's\n") );
  Out( _T("   \t\t\t\"%SystemRoot%\" directory\n") );

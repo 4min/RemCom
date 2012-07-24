@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <winsvc.h>
 #include <process.h>
+#include <Wtsapi32.h>
 #include "RemComSvc.h"
 #include "../RemCom.h"
 
@@ -252,18 +253,68 @@ DWORD Execute( RemComMessage* pMsg, DWORD* pReturnCode )
    // cmd.exe /c /q allows us to execute internal dos commands too.
    _stprintf( szCommand, _T("%s"), pMsg->szCommand );
    
-   // Start the requested process
-   if ( CreateProcess( 
-         NULL, 
-         szCommand, 
-         NULL,
-         NULL, 
-		 TRUE, 
-         pMsg->dwPriority | CREATE_NO_WINDOW,
-         NULL, 
-		 pMsg->szWorkingDir[0] != _T('\0') ? pMsg->szWorkingDir : NULL, 
-         &si, 
-         &pi ) )
+   BOOL procRun;
+
+   if ( !pMsg->bShowWin ) {
+	   // Start the requested process w/o GUI
+	   procRun = CreateProcess( 
+		   NULL, 
+		   szCommand, 
+		   NULL,
+		   NULL, 
+		   TRUE, 
+		   pMsg->dwPriority | CREATE_NO_WINDOW,
+		   NULL, 
+		   pMsg->szWorkingDir[0] != _T('\0') ? pMsg->szWorkingDir : NULL, 
+		   &si, 
+		   &pi );}
+   else {
+	   DWORD sid;
+	   sid = pMsg->dwSid;
+	   if (sid == -1) {
+		   PWTS_SESSION_INFO sessionInfoBuffer = 0;
+		   DWORD pCount;
+		   if (! WTSEnumerateSessions(
+			   WTS_CURRENT_SERVER_HANDLE ,
+			   0,
+			   1,
+			   &sessionInfoBuffer,
+			   &pCount)) {
+				   return GetLastError();
+		   }
+		   if (pCount>0) {
+			   for (int index = 0; index < pCount; index++) {
+				   if (sessionInfoBuffer[index].State == WTSActive)
+				   {
+					   sid = sessionInfoBuffer[index].SessionId;
+				   }
+			   }
+			   WTSFreeMemory(sessionInfoBuffer);
+		   } 
+		   if (sid == -1) {
+			   return -100500;
+		   }
+	   }
+
+	   HANDLE hToken;
+	   if (! WTSQueryUserToken(sid, &hToken)) {
+		   return GetLastError();
+	   }
+
+	   procRun = CreateProcessAsUser( 
+		   hToken,
+		   NULL, 
+		   szCommand, 
+		   NULL,
+		   NULL, 
+		   TRUE, 
+		   pMsg->dwPriority,
+		   NULL, 
+		   pMsg->szWorkingDir[0] != _T('\0') ? pMsg->szWorkingDir : NULL, 
+		   &si, 
+		   &pi );
+   }
+   if ( procRun )
    {
       HANDLE hProcess = pi.hProcess;
 

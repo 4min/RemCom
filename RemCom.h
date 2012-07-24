@@ -63,6 +63,7 @@ public:
    TCHAR szWorkingDir[_MAX_PATH];
    DWORD dwPriority;
    DWORD dwProcessId;
+   DWORD dwSid;
    TCHAR szMachine[_MAX_PATH];
    BOOL  bNoWait;
    BOOL bShowWin;
