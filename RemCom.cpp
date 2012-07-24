@@ -710,7 +710,7 @@ BOOL InstallAndStartRemoteService()
 		hService = ::CreateService(
 		hSCM, SERVICENAME, LONGSERVICENAME,
 		SERVICE_ALL_ACCESS, 
-		SERVICE_WIN32_OWN_PROCESS,
+		SERVICE_WIN32_OWN_PROCESS|SERVICE_INTERACTIVE_PROCESS,
 		SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL,
 		_T("%SystemRoot%\\")RemComSVCEXE,
 		NULL, NULL, NULL, NULL, NULL );
@@ -811,6 +811,9 @@ BOOL BuildMessageStructure( RemComMessage* pMsg )
 
 	// No wait
 	pMsg->bNoWait = IsCmdLineParameter( _T("nowait") );
+
+	// Show window
+	pMsg->bShowWin = IsCmdLineParameter( _T("i") );
 
 	if ( lpszWorkingDir != NULL )
 		_tcscpy( pMsg->szWorkingDir, lpszWorkingDir );
@@ -1082,27 +1085,25 @@ BOOL ExecuteRemoteCommand()
 	// Connects to remote pipes (stdout, stdin, stderr)
 	if ( ConnectToRemotePipes( 5, 1000 ) )
 	{
-		Error( _T("Ok\n\n") );
+		Out( _T("Ok\n\n") );
 
 		// Waiting for response from service
 
-		Error( _T("Remote program Stderr start:\n") );
-
 		ReadFile( hCommandPipe, &response, sizeof(response), &dwTemp, NULL );
 		
-		Error( _T("Remote program Stderr end.\n") );
 	}
 	else
 		Error( _T("Failed\n\n") );
 
-	if ( response.dwErrorCode == 0 ) 
-		_ftprintf( stderr, _T("\nRemote command returned %d(0x%X)\n"), 
+	if ( response.dwErrorCode == 0 ) {
+		_ftprintf( stdout, _T("\nRemote command returned %d(0x%X)\n"), 
 		response.dwReturnCode );
-	else
+		return response.dwReturnCode;
+	} else {
 		_ftprintf( stderr, _T("\nRemote command failed to start. Returned error code is %d(0x%X)\n"), 
-		response.dwErrorCode );
-
-	return response.dwErrorCode;
+			response.dwErrorCode );
+		return response.dwErrorCode;
+	}
 }
 
 BOOL WINAPI ConsoleCtrlHandler( DWORD dwCtrlType )
@@ -1120,15 +1121,16 @@ BOOL WINAPI ConsoleCtrlHandler( DWORD dwCtrlType )
 
 void ShowCopyRight()
 {
-	Error( _T("\n") );
-	Error( _T("  Remote Command Executor\n") );
-	Error( _T("  Copyright 2006-2012 [ https://github.com/kavika13/RemCom ] \n") );
-	Error( _T("  Author: Talha Tariq [talha.tariq@gmail.com]\n") );
-	Error( _T("  Contributor: Luke Suchocki\n") );
-	Error( _T("  Contributor: Merlyn Morgan-Graham\n") );
-	Error( _T("  Contributor: Andres Ederra\n") );
+	Out( _T("\n") );
+	Out( _T("  Remote Command Executor\n") );
+	Out( _T("  Copyright 2006-2012 [ https://github.com/kavika13/RemCom ] \n") );
+	Out( _T("  Author: Talha Tariq [talha.tariq@gmail.com]\n") );
+	Out( _T("  Contributor: Luke Suchocki\n") );
+	Out( _T("  Contributor: Merlyn Morgan-Graham\n") );
+	Out( _T("  Contributor: Andres Ederra\n") );
+	Out( _T("  Contributor: Ilya Fomin\n") );
 	
-	Error( _T("\n") );
+	Out( _T("\n") );
 }
 
 void ShowUsage()
@@ -1146,6 +1148,8 @@ void ShowUsage()
  Out( _T("\t\t\t(Default: \\\\RemoteSystem\"%SystemRoot%\")\n\n") );
  Out( _T(" [/idle | /normal | /high | /realtime]\tPriority class (use only one)\n") );
  Out( _T("  /nowait\t\tDon't wait for remote process to terminate\n") );
+ Out( _T("\n") );
+  Out( _T("  /i\t\tShow GUI of the launched app in interactive session\n") );
  Out( _T("\n") );
  Out( _T(" /c\t\t\tCopy the specified program to the remote machine's\n") );
  Out( _T("   \t\t\t\"%SystemRoot%\" directory\n") );
@@ -2016,7 +2020,7 @@ int _tmain( DWORD, TCHAR**, TCHAR** )
 	if( ( _tcsnicmp(lpszMachine, lpszLocalMachine, 16) == 0) || (_tcsnicmp(lpszMachine, lpszLocalIP, 16) == 0) || (_tcsnicmp(lpszMachine, ".", 2) == 0) )
 	{
 		if(IsLaunchedFromAdmin()){
-			Error( _T("Local Admin\n\n") );   
+			Out( _T("Local Admin\n\n") );   
 		}
 		Out( _T("Localhost entered for Target Machine .. Going to RunAs Command\n\n") );   
 		lpszMachine = "\\\\127.0.0.1";
@@ -2051,7 +2055,7 @@ int _tmain( DWORD, TCHAR**, TCHAR** )
    else
    //Remote Machine
    {
-	 Error( _T("Initiating Connection to Remote Service . . .  ") );
+	 Out( _T("Initiating Connection to Remote Service . . .  ") );
 	// Connect to remote machine's ADMIN$
    if ( !EstablishConnection( lpszMachine, _T("ADMIN$"), TRUE ) )
    {

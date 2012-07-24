@@ -64,7 +64,8 @@ public:
    DWORD dwPriority;
    DWORD dwProcessId;
    TCHAR szMachine[_MAX_PATH];
-   BOOL  bNoWait;    
+   BOOL  bNoWait;
+   BOOL bShowWin;
 };
 
 class RemComResponse
